@@ -39,6 +39,9 @@ function getString(value: unknown): string {
 }
 
 export async function POST(req: Request) {
+  let firecrawlErrorMsg: string | null = null;
+  let localErrorMsg: string | null = null;
+
   try {
     const { url: rawUrl } = BodySchema.parse(await req.json());
     const url = await validatePublicHttpUrl(rawUrl);
@@ -79,32 +82,46 @@ export async function POST(req: Request) {
 
       // Otherwise fall through to local fallback
     } catch (firecrawlError) {
-      console.error("Firecrawl error:", firecrawlError);
+      firecrawlErrorMsg = firecrawlError instanceof Error ? firecrawlError.message : "Unknown firecrawl error";
+      console.error("Firecrawl error:", firecrawlErrorMsg);
       // Fall through to local fallback
     }
 
     // 2) Local fallback
-    const local = await localExtract(url);
-    const contentHtml = safeRenderHtml(local.contentHtml);
-    const pp = postProcess(contentHtml);
+    try {
+      const local = await localExtract(url);
+      const contentHtml = safeRenderHtml(local.contentHtml);
+      const pp = postProcess(contentHtml);
 
-    const result: ExtractResult = {
-      inputUrl: url,
-      finalUrl: local.finalUrl,
-      metaTitle: local.metaTitle,
-      metaDescription: local.metaDescription,
-      canonicalUrl: local.canonicalUrl || undefined,
-      robotsMeta: local.robotsMeta || undefined,
-      headings: pp.headings,
-      contentHtml,
-      contentText: pp.contentText,
-      wordCount: pp.wordCount,
-      source: "local",
-      qualityScore: pp.qualityScore,
-      warnings: pp.warnings,
-    };
+      const result: ExtractResult = {
+        inputUrl: url,
+        finalUrl: local.finalUrl,
+        metaTitle: local.metaTitle,
+        metaDescription: local.metaDescription,
+        canonicalUrl: local.canonicalUrl || undefined,
+        robotsMeta: local.robotsMeta || undefined,
+        headings: pp.headings,
+        contentHtml,
+        contentText: pp.contentText,
+        wordCount: pp.wordCount,
+        source: "local",
+        qualityScore: pp.qualityScore,
+        warnings: pp.warnings,
+      };
 
-    return NextResponse.json(result);
+      return NextResponse.json(result);
+    } catch (localError) {
+      localErrorMsg = localError instanceof Error ? localError.message : "Unknown local error";
+      console.error("Local fallback error:", localErrorMsg);
+    }
+
+    // Both methods failed
+    const errorDetails = [
+      firecrawlErrorMsg ? `Firecrawl: ${firecrawlErrorMsg}` : null,
+      localErrorMsg ? `Local: ${localErrorMsg}` : null,
+    ].filter(Boolean).join("; ");
+
+    return NextResponse.json({ error: `Extraction failed. ${errorDetails}` }, { status: 500 });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
