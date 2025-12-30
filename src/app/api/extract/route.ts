@@ -11,6 +11,11 @@ export const runtime = "nodejs";
 
 const BodySchema = z.object({ url: z.string() });
 
+// Health check endpoint
+export async function GET() {
+  return NextResponse.json({ status: "ok", timestamp: new Date().toISOString() });
+}
+
 function safeRenderHtml(html: string): string {
   return sanitizeHtml(html, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat([
