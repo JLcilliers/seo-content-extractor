@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import sanitizeHtml from "sanitize-html";
 import { validatePublicHttpUrl } from "@/lib/extract/ssrf";
 import { firecrawlScrape } from "@/lib/extract/firecrawl";
-import { localExtract } from "@/lib/extract/local";
 import { postProcess } from "@/lib/extract/postprocess";
 import type { ExtractResult } from "@/lib/extract/types";
 
@@ -16,28 +14,6 @@ export async function GET() {
   return NextResponse.json({ status: "ok", timestamp: new Date().toISOString() });
 }
 
-function safeRenderHtml(html: string): string {
-  return sanitizeHtml(html, {
-    allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-      "h1",
-      "h2",
-      "h3",
-      "h4",
-      "h5",
-      "h6",
-      "table",
-      "thead",
-      "tbody",
-      "tr",
-      "th",
-      "td",
-      "figure",
-      "figcaption",
-    ]),
-    allowedAttributes: { a: ["href", "target", "rel"], "*": ["id", "class"] },
-  });
-}
-
 function getString(value: unknown): string {
   if (typeof value === "string") return value.trim();
   return "";
@@ -46,6 +22,31 @@ function getString(value: unknown): string {
 export async function POST(req: Request) {
   let firecrawlErrorMsg: string | null = null;
   let localErrorMsg: string | null = null;
+
+  // Dynamic import for sanitize-html
+  const sanitizeHtml = (await import("sanitize-html")).default;
+
+  function safeRenderHtml(html: string): string {
+    return sanitizeHtml(html, {
+      allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "table",
+        "thead",
+        "tbody",
+        "tr",
+        "th",
+        "td",
+        "figure",
+        "figcaption",
+      ]),
+      allowedAttributes: { a: ["href", "target", "rel"], "*": ["id", "class"] },
+    });
+  }
 
   try {
     const { url: rawUrl } = BodySchema.parse(await req.json());
@@ -92,8 +93,9 @@ export async function POST(req: Request) {
       // Fall through to local fallback
     }
 
-    // 2) Local fallback
+    // 2) Local fallback - dynamic import
     try {
+      const { localExtract } = await import("@/lib/extract/local");
       const local = await localExtract(url);
       const contentHtml = safeRenderHtml(local.contentHtml);
       const pp = postProcess(contentHtml);
