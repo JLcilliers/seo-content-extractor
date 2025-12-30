@@ -6,17 +6,14 @@ export async function firecrawlScrape(url: string) {
 
   const firecrawl = new Firecrawl({ apiKey });
 
-  const res = await firecrawl.scrape(url, {
+  // Firecrawl v4 throws on error and returns document directly on success
+  const doc = await firecrawl.scrape(url, {
     formats: ["html", "markdown"],
-    blockAds: true,
-    timeout: 60000,
-    waitFor: 0,
-    removeBase64Images: true,
   });
 
-  if (!res) {
-    throw new Error("Firecrawl scrape failed.");
+  if (!doc || !doc.html) {
+    throw new Error("Firecrawl returned empty content");
   }
 
-  return res;
+  return doc;
 }

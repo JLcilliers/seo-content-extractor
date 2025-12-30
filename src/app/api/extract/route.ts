@@ -45,15 +45,15 @@ export async function POST(req: Request) {
 
     // 1) Firecrawl first
     try {
-      const data = await firecrawlScrape(url);
-      const metadata = data.metadata as Record<string, unknown> | undefined;
+      const response = await firecrawlScrape(url);
+      const metadata = response.metadata as Record<string, unknown> | undefined;
 
       const metaTitle = getString(metadata?.title);
       const metaDescription = getString(metadata?.description);
-      const canonicalUrl = getString(metadata?.canonicalUrl) || getString(metadata?.canonical);
+      const canonicalUrl = getString(metadata?.ogUrl) || getString(metadata?.sourceURL);
       const robotsMeta = getString(metadata?.robots);
 
-      const contentHtml = safeRenderHtml(getString(data.html));
+      const contentHtml = safeRenderHtml(getString(response.html));
       const pp = postProcess(contentHtml);
 
       const result: ExtractResult = {
@@ -78,8 +78,9 @@ export async function POST(req: Request) {
       }
 
       // Otherwise fall through to local fallback
-    } catch {
-      // ignore and fallback
+    } catch (firecrawlError) {
+      console.error("Firecrawl error:", firecrawlError);
+      // Fall through to local fallback
     }
 
     // 2) Local fallback
