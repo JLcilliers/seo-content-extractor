@@ -22,33 +22,33 @@ export async function POST(req: Request) {
   let firecrawlErrorMsg: string | null = null;
   let localErrorMsg: string | null = null;
 
-  // Dynamic imports for modules that may have serverless issues
-  const sanitizeHtml = (await import("sanitize-html")).default;
-  const { postProcess } = await import("@/lib/extract/postprocess");
-
-  function safeRenderHtml(html: string): string {
-    return sanitizeHtml(html, {
-      allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "table",
-        "thead",
-        "tbody",
-        "tr",
-        "th",
-        "td",
-        "figure",
-        "figcaption",
-      ]),
-      allowedAttributes: { a: ["href", "target", "rel"], "*": ["id", "class"] },
-    });
-  }
-
   try {
+    // Dynamic imports for modules that may have serverless issues
+    const sanitizeHtml = (await import("sanitize-html")).default;
+    const { postProcess } = await import("@/lib/extract/postprocess");
+
+    function safeRenderHtml(html: string): string {
+      return sanitizeHtml(html, {
+        allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6",
+          "table",
+          "thead",
+          "tbody",
+          "tr",
+          "th",
+          "td",
+          "figure",
+          "figcaption",
+        ]),
+        allowedAttributes: { a: ["href", "target", "rel"], "*": ["id", "class"] },
+      });
+    }
+
     const { url: rawUrl } = BodySchema.parse(await req.json());
     const url = await validatePublicHttpUrl(rawUrl);
 
@@ -131,6 +131,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Extraction failed. ${errorDetails}` }, { status: 500 });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
+    console.error("POST handler error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
