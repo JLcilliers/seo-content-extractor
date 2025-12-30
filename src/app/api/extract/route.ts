@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { validatePublicHttpUrl } from "@/lib/extract/ssrf";
 import { firecrawlScrape } from "@/lib/extract/firecrawl";
-import { postProcess } from "@/lib/extract/postprocess";
 import type { ExtractResult } from "@/lib/extract/types";
 
 export const runtime = "nodejs";
@@ -23,8 +22,9 @@ export async function POST(req: Request) {
   let firecrawlErrorMsg: string | null = null;
   let localErrorMsg: string | null = null;
 
-  // Dynamic import for sanitize-html
+  // Dynamic imports for modules that may have serverless issues
   const sanitizeHtml = (await import("sanitize-html")).default;
+  const { postProcess } = await import("@/lib/extract/postprocess");
 
   function safeRenderHtml(html: string): string {
     return sanitizeHtml(html, {
