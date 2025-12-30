@@ -1,20 +1,27 @@
-import { JSDOM } from "jsdom";
+import * as cheerio from "cheerio";
 
 function textFromHtml(html: string): string {
-  const dom = new JSDOM(html);
-  const doc = dom.window.document;
-  return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+  const $ = cheerio.load(html);
+  // Remove script and style elements
+  $("script, style").remove();
+  // Get text content
+  const text = $.root().text() || "";
+  return text.replace(/\s+/g, " ").trim();
 }
 
 function extractHeadings(html: string): { tag: string; text: string }[] {
-  const dom = new JSDOM(html);
-  const doc = dom.window.document;
-  return Array.from(doc.querySelectorAll("h1,h2,h3,h4,h5,h6"))
-    .map((h) => ({
-      tag: h.tagName.toLowerCase(),
-      text: (h.textContent || "").trim(),
-    }))
-    .filter((h) => h.text);
+  const $ = cheerio.load(html);
+  const headings: { tag: string; text: string }[] = [];
+
+  $("h1, h2, h3, h4, h5, h6").each((_, el) => {
+    const tag = el.tagName.toLowerCase();
+    const text = $(el).text().trim();
+    if (text) {
+      headings.push({ tag, text });
+    }
+  });
+
+  return headings;
 }
 
 function wordCount(text: string): number {
